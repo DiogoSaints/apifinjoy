@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
-const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const app = express();
@@ -24,28 +23,6 @@ app.use(cors({
 }));
 
 app.use(express.json());
-
-// Middleware to extract user from JWT
-const extractUser = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        try {
-            // Decode without verification for now (Supabase tokens are pre-validated)
-            const decoded = jwt.decode(token);
-            if (decoded && decoded.sub) {
-                req.userId = decoded.sub;
-                req.userEmail = decoded.email;
-            }
-        } catch (err) {
-            console.error('JWT decode error:', err.message);
-        }
-    }
-    next();
-};
-
-app.use(extractUser);
 
 // Health check route
 app.get('/', (req, res) => {
@@ -101,15 +78,9 @@ app.get('/accounts', async (req, res) => {
 });
 
 app.post('/accounts', async (req, res) => {
-    const { name, type, balance, color, icon } = req.body;
-    const user_id = req.userId;
-
-    if (!user_id) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
-
+    const { user_id, name, type, balance, color, icon } = req.body;
     try {
-        await ensureUser(user_id, req.userEmail);
+        await ensureUser(user_id);
 
         const { rows } = await query(
             'INSERT INTO accounts (user_id, name, type, balance, color, icon) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
@@ -143,20 +114,16 @@ app.get('/transactions', async (req, res) => {
 });
 
 app.post('/transactions', async (req, res) => {
-    let { account_id, category_id, type, description, amount, date, payment_method } = req.body;
-    const user_id = req.userId;
-
-    if (!user_id) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
+    let { user_id, account_id, category_id, type, description, amount, date, payment_method } = req.body;
 
     // Convert empty strings to null for UUID fields
     account_id = account_id || null;
     category_id = category_id || null;
+    user_id = user_id || null;
 
     const client = await pool.connect();
     try {
-        await ensureUser(user_id, req.userEmail);
+        await ensureUser(user_id);
 
         await client.query('SET search_path TO finance_app, public');
         await client.query('BEGIN');
@@ -197,15 +164,9 @@ app.get('/categories', async (req, res) => {
 });
 
 app.post('/categories', async (req, res) => {
-    const { name, icon, type, color, is_default } = req.body;
-    const user_id = req.userId;
-
-    if (!user_id) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
-
+    const { user_id, name, icon, type, color, is_default } = req.body;
     try {
-        await ensureUser(user_id, req.userEmail);
+        await ensureUser(user_id);
         const { rows } = await query(
             'INSERT INTO categories (user_id, name, icon, type, color, is_default) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [user_id, name, icon, type, color, is_default || false]
