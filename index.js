@@ -55,7 +55,7 @@ const ensureUser = async (userId, email = null) => {
         if (rows.length === 0) {
             // Create user if doesn't exist
             await query(
-                'INSERT INTO users (id, email, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) ON CONFLICT (id) DO NOTHING',
+                'INSERT INTO users (id, email, created_at) VALUES ($1, $2, NOW()) ON CONFLICT (id) DO NOTHING',
                 [userId, email]
             );
             console.log(`User ${userId} created in database`);
