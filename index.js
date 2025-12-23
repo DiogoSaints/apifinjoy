@@ -106,7 +106,12 @@ app.get('/accounts', async (req, res) => {
 });
 
 app.post('/accounts', async (req, res) => {
-    const { user_id, name, type, balance, color, icon } = req.body;
+    const { name, type, balance, color, icon } = req.body;
+
+    // Require authentication
+    if (!req.userId || !req.userEmail) {
+        return res.status(401).json({ error: 'Unauthorized - Please login' });
+    }
 
     const client = await pool.connect();
     try {
@@ -114,7 +119,7 @@ app.post('/accounts', async (req, res) => {
         await client.query('BEGIN');
 
         // Ensure user exists within this transaction
-        await ensureUser(client, user_id);
+        await ensureUser(client, req.userId, req.userEmail);
 
         const { rows } = await client.query(
             'INSERT INTO accounts (user_id, name, type, balance, color, icon) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
@@ -171,7 +176,7 @@ app.post('/transactions', async (req, res) => {
         await client.query('BEGIN');
 
         // Ensure user exists within this transaction
-        await ensureUser(client, user_id);
+        await ensureUser(client, req.userId, req.userEmail);
 
         // Insert Transaction
         const { rows } = await client.query(
@@ -209,7 +214,12 @@ app.get('/categories', async (req, res) => {
 });
 
 app.post('/categories', async (req, res) => {
-    const { user_id, name, icon, type, color, is_default } = req.body;
+    const { name, icon, type, color, is_default } = req.body;
+
+    // Require authentication
+    if (!req.userId || !req.userEmail) {
+        return res.status(401).json({ error: 'Unauthorized - Please login' });
+    }
 
     const client = await pool.connect();
     try {
@@ -217,7 +227,7 @@ app.post('/categories', async (req, res) => {
         await client.query('BEGIN');
 
         // Ensure user exists within this transaction
-        await ensureUser(client, user_id);
+        await ensureUser(client, req.userId, req.userEmail);
 
         const { rows } = await client.query(
             'INSERT INTO categories (user_id, name, icon, type, color, is_default) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
