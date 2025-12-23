@@ -74,7 +74,12 @@ app.get('/transactions', async (req, res) => {
 });
 
 app.post('/transactions', async (req, res) => {
-    const { user_id, account_id, category_id, type, description, amount, date, payment_method } = req.body;
+    let { user_id, account_id, category_id, type, description, amount, date, payment_method } = req.body;
+
+    // Convert empty strings to null for UUID fields
+    account_id = account_id || null;
+    category_id = category_id || null;
+    user_id = user_id || null;
 
     const client = await pool.connect();
     try {
@@ -87,8 +92,8 @@ app.post('/transactions', async (req, res) => {
             [user_id, account_id, category_id, type, description, amount, date, payment_method]
         );
 
-        // Update Account Balance
-        if (account_id) {
+        // Update Account Balance (only if account_id is valid)
+        if (account_id && account_id.length > 0) {
             if (type === 'income') {
                 await client.query('UPDATE accounts SET balance = balance + $1 WHERE id = $2', [amount, account_id]);
             } else {
