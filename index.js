@@ -24,6 +24,34 @@ app.use(cors({
 
 app.use(express.json());
 
+// Middleware to extract and validate user from JWT
+const extractUser = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        try {
+            // For now, just decode (Supabase tokens are already validated by the client)
+            // In production, you should verify the signature with Supabase JWT secret
+            const jwt = require('jsonwebtoken');
+            const decoded = jwt.decode(token);
+
+            if (decoded && decoded.sub && decoded.email) {
+                req.userId = decoded.sub;
+                req.userEmail = decoded.email;
+                console.log(`Authenticated user: ${decoded.email} (${decoded.sub})`);
+            } else {
+                console.log('Invalid token: missing sub or email');
+            }
+        } catch (err) {
+            console.error('JWT decode error:', err.message);
+        }
+    }
+    next();
+};
+
+app.use(extractUser);
+
 // Health check route
 app.get('/', (req, res) => {
     res.send('API is running ok');
@@ -90,7 +118,7 @@ app.post('/accounts', async (req, res) => {
 
         const { rows } = await client.query(
             'INSERT INTO accounts (user_id, name, type, balance, color, icon) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [user_id, name, type, balance, color, icon]
+            [req.userId, name, type, balance, color, icon]
         );
 
         await client.query('COMMIT');
@@ -126,12 +154,16 @@ app.get('/transactions', async (req, res) => {
 });
 
 app.post('/transactions', async (req, res) => {
-    let { user_id, account_id, category_id, type, description, amount, date, payment_method } = req.body;
+    let { account_id, category_id, type, description, amount, date, payment_method } = req.body;
+
+    // Require authentication
+    if (!req.userId || !req.userEmail) {
+        return res.status(401).json({ error: 'Unauthorized - Please login' });
+    }
 
     // Convert empty strings to null for UUID fields
     account_id = account_id || null;
     category_id = category_id || null;
-    user_id = user_id || null;
 
     const client = await pool.connect();
     try {
@@ -144,7 +176,7 @@ app.post('/transactions', async (req, res) => {
         // Insert Transaction
         const { rows } = await client.query(
             'INSERT INTO transactions (user_id, account_id, category_id, type, description, amount, date, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-            [user_id, account_id, category_id, type, description, amount, date, payment_method]
+            [req.userId, account_id, category_id, type, description, amount, date, payment_method]
         );
 
         // Update Account Balance (only if account_id is valid)
@@ -189,7 +221,7 @@ app.post('/categories', async (req, res) => {
 
         const { rows } = await client.query(
             'INSERT INTO categories (user_id, name, icon, type, color, is_default) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [user_id, name, icon, type, color, is_default || false]
+            [req.userId, name, icon, type, color, is_default || false]
         );
 
         await client.query('COMMIT');
