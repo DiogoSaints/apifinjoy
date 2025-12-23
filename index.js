@@ -18,6 +18,11 @@ const pool = new Pool({
 app.use(cors());
 app.use(express.json());
 
+// Health check route
+app.get('/', (req, res) => {
+    res.send('API is running ok');
+});
+
 // Middleware to set search path for every request/connection
 // Note: In high traffic, setting this per query or on connection init is better.
 // For this stub, we'll prefix queries or strict search_path.
