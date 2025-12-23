@@ -101,10 +101,15 @@ app.get('/accounts', async (req, res) => {
 });
 
 app.post('/accounts', async (req, res) => {
-    const { user_id, name, type, balance, color, icon } = req.body;
+    const { name, type, balance, color, icon } = req.body;
+    const user_id = req.userId;
+
+    if (!user_id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     try {
-        // Ensure user exists
-        await ensureUser(user_id);
+        await ensureUser(user_id, req.userEmail);
 
         const { rows } = await query(
             'INSERT INTO accounts (user_id, name, type, balance, color, icon) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
@@ -138,17 +143,20 @@ app.get('/transactions', async (req, res) => {
 });
 
 app.post('/transactions', async (req, res) => {
-    let { user_id, account_id, category_id, type, description, amount, date, payment_method } = req.body;
+    let { account_id, category_id, type, description, amount, date, payment_method } = req.body;
+    const user_id = req.userId;
+
+    if (!user_id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     // Convert empty strings to null for UUID fields
     account_id = account_id || null;
     category_id = category_id || null;
-    user_id = user_id || null;
 
     const client = await pool.connect();
     try {
-        // Ensure user exists first
-        await ensureUser(user_id);
+        await ensureUser(user_id, req.userEmail);
 
         await client.query('SET search_path TO finance_app, public');
         await client.query('BEGIN');
@@ -189,8 +197,15 @@ app.get('/categories', async (req, res) => {
 });
 
 app.post('/categories', async (req, res) => {
-    const { user_id, name, icon, type, color, is_default } = req.body;
+    const { name, icon, type, color, is_default } = req.body;
+    const user_id = req.userId;
+
+    if (!user_id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     try {
+        await ensureUser(user_id, req.userEmail);
         const { rows } = await query(
             'INSERT INTO categories (user_id, name, icon, type, color, is_default) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [user_id, name, icon, type, color, is_default || false]
