@@ -72,24 +72,33 @@ const query = async (text, params) => {
     }
 };
 
-// Helper to ensure user exists in database
-const ensureUser = async (userId, email = null) => {
-    if (!userId) return;
+// Helper to ensure user exists in database (must be called within a transaction)
+const ensureUser = async (client, userId, email = null) => {
+    if (!userId) {
+        console.log('ensureUser: No userId provided');
+        return;
+    }
+
+    console.log(`ensureUser: Checking if user ${userId} exists...`);
 
     try {
         // Check if user exists
-        const { rows } = await query('SELECT id FROM users WHERE id = $1', [userId]);
+        const { rows } = await client.query('SELECT id FROM users WHERE id = $1', [userId]);
 
         if (rows.length === 0) {
+            console.log(`ensureUser: Creating user ${userId} with email: ${email}`);
             // Create user if doesn't exist
-            await query(
+            await client.query(
                 'INSERT INTO users (id, email, created_at) VALUES ($1, $2, NOW()) ON CONFLICT (id) DO NOTHING',
                 [userId, email]
             );
-            console.log(`User ${userId} created in database`);
+            console.log(`ensureUser: User ${userId} created successfully`);
+        } else {
+            console.log(`ensureUser: User ${userId} already exists`);
         }
     } catch (err) {
-        console.error('Error ensuring user exists:', err.message);
+        console.error('ensureUser ERROR:', err.message, err.stack);
+        throw err; // Re-throw to fail the transaction
     }
 };
 
