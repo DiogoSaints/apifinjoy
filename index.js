@@ -16,7 +16,14 @@ const pool = new Pool({
     port: process.env.DB_PORT || 5432,
 });
 
-app.use(cors());
+// Enable CORS for all origins (for development)
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+}));
+
 app.use(express.json());
 
 // Middleware to extract user from JWT
