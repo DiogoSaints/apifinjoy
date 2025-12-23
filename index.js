@@ -38,6 +38,27 @@ const query = async (text, params) => {
     }
 };
 
+// Helper to ensure user exists in database
+const ensureUser = async (userId, email = null) => {
+    if (!userId) return;
+
+    try {
+        // Check if user exists
+        const { rows } = await query('SELECT id FROM users WHERE id = $1', [userId]);
+
+        if (rows.length === 0) {
+            // Create user if doesn't exist
+            await query(
+                'INSERT INTO users (id, email, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) ON CONFLICT (id) DO NOTHING',
+                [userId, email]
+            );
+            console.log(`User ${userId} created in database`);
+        }
+    } catch (err) {
+        console.error('Error ensuring user exists:', err.message);
+    }
+};
+
 // Routes
 
 // Accounts
@@ -53,11 +74,25 @@ app.get('/accounts', async (req, res) => {
 app.post('/accounts', async (req, res) => {
     const { user_id, name, type, balance, color, icon } = req.body;
     try {
+        // Ensure user exists
+        await ensureUser(user_id);
+
         const { rows } = await query(
             'INSERT INTO accounts (user_id, name, type, balance, color, icon) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [user_id, name, type, balance, color, icon]
         );
         res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Users - Sync endpoint
+app.post('/users/sync', async (req, res) => {
+    const { id, email } = req.body;
+    try {
+        await ensureUser(id, email);
+        res.json({ success: true, message: 'User synced' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
