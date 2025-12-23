@@ -79,16 +79,28 @@ app.get('/accounts', async (req, res) => {
 
 app.post('/accounts', async (req, res) => {
     const { user_id, name, type, balance, color, icon } = req.body;
-    try {
-        await ensureUser(user_id);
 
-        const { rows } = await query(
+    const client = await pool.connect();
+    try {
+        await client.query('SET search_path TO finance_app, public');
+        await client.query('BEGIN');
+
+        // Ensure user exists within this transaction
+        await ensureUser(client, user_id);
+
+        const { rows } = await client.query(
             'INSERT INTO accounts (user_id, name, type, balance, color, icon) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [user_id, name, type, balance, color, icon]
         );
+
+        await client.query('COMMIT');
         res.json(rows[0]);
     } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Error creating account:', err.message);
         res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
     }
 });
 
@@ -123,10 +135,11 @@ app.post('/transactions', async (req, res) => {
 
     const client = await pool.connect();
     try {
-        await ensureUser(user_id);
-
         await client.query('SET search_path TO finance_app, public');
         await client.query('BEGIN');
+
+        // Ensure user exists within this transaction
+        await ensureUser(client, user_id);
 
         // Insert Transaction
         const { rows } = await client.query(
@@ -165,15 +178,28 @@ app.get('/categories', async (req, res) => {
 
 app.post('/categories', async (req, res) => {
     const { user_id, name, icon, type, color, is_default } = req.body;
+
+    const client = await pool.connect();
     try {
-        await ensureUser(user_id);
-        const { rows } = await query(
+        await client.query('SET search_path TO finance_app, public');
+        await client.query('BEGIN');
+
+        // Ensure user exists within this transaction
+        await ensureUser(client, user_id);
+
+        const { rows } = await client.query(
             'INSERT INTO categories (user_id, name, icon, type, color, is_default) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [user_id, name, icon, type, color, is_default || false]
         );
+
+        await client.query('COMMIT');
         res.json(rows[0]);
     } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Error creating category:', err.message);
         res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
     }
 });
 
