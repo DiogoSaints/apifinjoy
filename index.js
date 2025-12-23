@@ -111,6 +111,104 @@ app.post('/transactions', async (req, res) => {
     }
 });
 
+// Categories
+app.get('/categories', async (req, res) => {
+    try {
+        const { rows } = await query('SELECT * FROM categories');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/categories', async (req, res) => {
+    const { user_id, name, icon, type, color, is_default } = req.body;
+    try {
+        const { rows } = await query(
+            'INSERT INTO categories (user_id, name, icon, type, color, is_default) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [user_id, name, icon, type, color, is_default || false]
+        );
+        res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Recurring Transactions
+app.get('/recurring_transactions', async (req, res) => {
+    try {
+        const { rows } = await query('SELECT * FROM recurring_transactions');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/recurring_transactions', async (req, res) => {
+    const { user_id, account_id, category_id, type, description, amount, payment_method, frequency, start_date, end_date, next_date } = req.body;
+    try {
+        const { rows } = await query(
+            'INSERT INTO recurring_transactions (user_id, account_id, category_id, type, description, amount, payment_method, frequency, start_date, end_date, next_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
+            [user_id, account_id, category_id, type, description, amount, payment_method, frequency, start_date, end_date, next_date]
+        );
+        res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Goals
+app.get('/goals', async (req, res) => {
+    try {
+        const { rows } = await query('SELECT * FROM goals');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/goals', async (req, res) => {
+    const { user_id, name, target_amount, current_amount, start_date, deadline, status } = req.body;
+    try {
+        const { rows } = await query(
+            'INSERT INTO goals (user_id, name, target_amount, current_amount, start_date, deadline, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [user_id, name, target_amount, current_amount || 0, start_date, deadline, status || 'active']
+        );
+        res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Budgets
+app.get('/budgets', async (req, res) => {
+    try {
+        const { rows } = await query('SELECT * FROM budgets');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/budgets', async (req, res) => {
+    const { user_id, category_id, amount, month, year } = req.body;
+    try {
+        const { rows } = await query(
+            'INSERT INTO budgets (user_id, category_id, amount, month, year) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [user_id, category_id, amount, month, year]
+        );
+        res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Subscriptions
+app.get('/subscriptions/me', async (req, res) => {
+    // Placeholder - return empty for now
+    res.json(null);
+});
+
 // Settings (WhatsApp)
 app.post('/settings', async (req, res) => {
     const { whatsapp_number } = req.body;
