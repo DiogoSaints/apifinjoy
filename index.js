@@ -118,6 +118,9 @@ app.post('/transactions', async (req, res) => {
 
     const client = await pool.connect();
     try {
+        // Ensure user exists first
+        await ensureUser(user_id);
+
         await client.query('SET search_path TO finance_app, public');
         await client.query('BEGIN');
 
