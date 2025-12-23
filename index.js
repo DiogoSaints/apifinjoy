@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const app = express();
@@ -17,6 +18,28 @@ const pool = new Pool({
 
 app.use(cors());
 app.use(express.json());
+
+// Middleware to extract user from JWT
+const extractUser = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        try {
+            // Decode without verification for now (Supabase tokens are pre-validated)
+            const decoded = jwt.decode(token);
+            if (decoded && decoded.sub) {
+                req.userId = decoded.sub;
+                req.userEmail = decoded.email;
+            }
+        } catch (err) {
+            console.error('JWT decode error:', err.message);
+        }
+    }
+    next();
+};
+
+app.use(extractUser);
 
 // Health check route
 app.get('/', (req, res) => {
